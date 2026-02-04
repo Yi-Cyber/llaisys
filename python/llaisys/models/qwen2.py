@@ -66,9 +66,28 @@ class Qwen2:
                     np_data = pt_tensor.to(torch.float32).numpy()
                     
                     # 3. 传给 LLAISYS Tensor
-                    tensor = Tensor.from_numpy(np_data).to(device)
+                    # ✅ 新代码：手动构建流程
+
+                    # 1. 确保 numpy 数组在内存中是连续的（非常重要，否则数据会错乱）
+                    if not np_data.flags['C_CONTIGUOUS']:
+                        np_data = np.ascontiguousarray(np_data)
+
+                    # 2. 使用 shape 初始化 Tensor
+                    # 注意：直接在 init 中传入 device，因为我看代码里没有 .to() 方法
+                    tensor = Tensor(
+                        shape=np_data.shape, 
+                        device=device
+                        # 如果 np_data 不是 float32，这里可能还需要指定 dtype=...
+                    )
+
+                    # 3. 获取 NumPy 数组的 C 指针
+                    data_ptr = np_data.ctypes.data_as(ctypes.c_void_p)
+
+                    # 4. 调用底层的 load 方法将数据复制进去
+                    tensor.load(data_ptr)
                     self.keep_alive_tensors.append(tensor)
-                    handle = tensor.handle
+                    # ✅ 正确代码
+                    handle = tensor.lib_tensor()
 
                     # 映射逻辑保持不变
                     if "model.embed_tokens" in key: c_weights.in_embed = handle
