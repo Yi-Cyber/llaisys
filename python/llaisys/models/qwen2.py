@@ -147,12 +147,14 @@ class Qwen2:
                 1 
             )
             
-            if next_token == self.meta.end_token:
-                break
-            
+
             tokens.append(next_token)
 
-        return tokens[len(inputs):]
+            # 2. 如果是结束符，再停止生成
+            if next_token == self.meta.end_token:
+                break
+
+        return tokens
 
     def __del__(self):
         if hasattr(self, "model_ptr") and self.model_ptr:
